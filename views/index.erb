@@ -1,0 +1,117 @@
+</head>
+    <style>
+        body {
+            background-color: rgba(0,0,0,0) !important;
+            height: 100%;
+            overflow-y: hidden;
+        }
+	.pane {
+		height: 100%;
+		top: 0;
+		position: absolute;
+		bottom: 0;
+	}
+	.pane.settings {
+		background-color: #231f20;
+		left: 0;
+		width: 223px;
+	}
+	.pane.chat {
+		background-color: rgba(255,255,255,0.1);
+		right: 0;
+		left: 223px;
+	}
+	.friendinlist {
+		width: 100%;
+		height: 39px;
+		padding: 10px;
+	}
+	#info {
+		position: absolute;
+		top: 0px;
+		left: 0px; 
+		right: 223px;
+	}
+	.profile_pic {
+		width: 44px;
+		height: 41px;
+		float: left;
+		margin-right: 8px;
+		background-color: white;
+	}
+	.friendinlist .name {
+		color: white;
+		font-size: 11pt;
+		font-weight: bold;
+		display: inline-block;
+		vertical-align: middle;
+		margin-top: 4px;
+	}
+	.badge {
+		height: 10px;
+		width: 10px;
+		border-radius: 5px;
+		position: relative;
+		left: 183px;
+		top: -20px;
+	}
+	.badge.online {
+		color: #6bc260;
+		background-color: #6bc260;
+	}
+	.badge.shadow {
+		box-shadow: 0 0 8px;
+	}
+	#friends {
+		overflow-y: auto;
+		width: 100%;
+		background-color: #414042; 
+		position: absolute;
+		top: 59px;
+		border-bottom: 1px solid #636466;
+		border-top: 1px solid #636466;
+		bottom: 50px;
+	}
+	#friends:empty:before {
+		color: white;
+		content: "You have no friends. :(";
+	}
+	/*
+	#friends::-webkit-scrollbar {
+		width: 13px;
+		height: 13px;;
+		//background-color: blue;
+	}
+	#friends::-webkit-scrollbar-track-piece {
+		background-color: blue;//#414042;
+	}
+	#friends::-webkit-scrollbar-track {
+		background-color: #1c1c1c;
+	}*/
+	.friendinlist .status {
+		color: #636466;
+	}
+    </style>
+</head>
+<body>
+	<div class="pane settings">
+		<div id="info" class="friendinlist">
+			<img class="profile_pic" src="http://www.gravatar.com/avatar/TristanRice?s=44&d=retro"></img>
+			<div class="name">
+				<%= GLib.get_real_name %>
+			</div>
+			<div class="status">
+				No status yet...
+			</div>
+			<div class="badge online shadow"></div>
+		</div>
+		<div id="friends"></div>
+	</div>
+	<div class="pane chat">
+	</div>
+</body>
+<script>
+    <%= File.read('web/jquery.min.js') %>
+    <%= File.read('web/core.js') %>
+    $(document).resize();
+</script>

@@ -1,0 +1,171 @@
+#!/usr/bin/env ruby
+#:cal SetSyn("Ruby")
+
+Dir.chdir File.dirname(__FILE__)
+
+$config = {
+}
+
+require 'bundler'
+Bundler.require 
+class WebViewWindow
+    attr_accessor :window, :screen, :webview
+    def initialize
+        @window = Gtk::Window.new :toplevel
+        @window.set_title "Toxin - Chat"
+	#@window.set_type_hint 6
+        #@window.set_decorated false
+        @screen = @window.get_screen
+        @webview = WebKit::WebView.new
+        @scroll = Gtk::ScrolledWindow.new nil, nil
+        @window.add @scroll
+        @scroll.add @webview
+        GObject.signal_connect(@window, "destroy") { Gtk.main_quit }
+        transparent
+        post_init
+    end
+    # TODO: This doesn't work and I don't know why.
+    def transparent
+        visual = @screen.get_rgba_visual()
+        @window.set_visual visual
+        @scroll.set_visual visual
+        @webview.set_transparent true
+    end
+    def erb path
+        erb = Erubis::Eruby.new(File.read("views/#{path.to_s}.erb"))
+        result = erb.result(binding())
+        @window.show_all
+        @webview.load_html_string(result, "file://#{File.absolute_path("./web/#{path.to_s}")}")
+    end
+    def post_init
+    end
+    def destroy
+        @window.destroy
+    end
+    def animate_move x, y, time
+        start = Time.new
+        pos = @window.get_position
+        anim_tick = proc do
+            time_since = Time.new - start
+            if time_since >= time
+                @window.move x,y
+            else
+                # Animation: Swing
+                scale = 0.5 - Math.cos(time_since/time*Math::PI)/2
+                ## Animation: Linear
+                #scale = time_since/time
+                new_x = pos[0]+(x-pos[0])*scale
+                new_y = pos[1]+(y-pos[1])*scale
+                @window.move new_x, new_y
+                EM.next_tick anim_tick
+            end
+        end
+        anim_tick.call
+    end
+    def animate_opacity opacity, time
+        start = Time.new
+        start_opacity = @window.get_opacity
+        anim_tick = proc do
+            time_since = Time.new - start
+            if time_since >= time
+                @window.set_opacity opacity
+            else
+                # Animation: Swing
+                scale = 0.5 - Math.cos(time_since/time*Math::PI)/2
+                ## Animation: Linear
+                #scale = time_since/time
+                new_opacity = start_opacity+(opacity-start_opacity)*scale
+                @window.set_opacity new_opacity
+                EM.next_tick anim_tick
+            end
+        end
+        anim_tick.call
+    end
+end
+
+class Main < WebViewWindow
+    def post_init
+        @window.resize 640,480
+        erb :index
+    end
+end
+
+def init
+    # Set process name
+    $0 = "toxin"
+    # Setup window
+    GirFFI.setup :WebKit, '3.0'
+    Gtk.init
+    puts "Failed to initialize" unless Tox::Messenger::initMessenger==0
+    puts "User ID: #{Tox::Messenger::self_public_key}"
+    help = false
+    ARGV.each do |arg|
+        case arg
+        when "pry"
+            binding.pry
+        when "help"
+            help = true
+        else
+            puts "Unrecognized argument: #{arg}"
+            help = true
+        end
+    end
+    if ARGV.length == 0
+	$main_window = Main.new
+    end
+    if help
+        puts "usage: toxin"
+        Process::exit
+    end
+end
+def get_name_bits
+    full = GLib.get_real_name
+    bits = full.split ' '
+    first = bits[0]
+    last = bits[1..-1].join ' '
+    return [first,last]
+end
+class HttpHost < EM::Connection
+    include EM::HttpServer
+    def post_init
+        super
+        no_environment_strings
+    end
+    def process_http_request
+        # the http request details are available via the following instance variables:
+        #   @http_protocol
+        #   @http_request_method
+        #   @http_cookie__filepath__ ruby
+        #   @http_if_none_match
+        #   @http_content_type
+        #   @http_path_info
+        #   @http_request_uri
+        #   @http_query_string
+        #   @http_post_content
+        #   @http_headers
+        #puts @http_request_uri
+        bits = @http_request_uri.split("/")
+    end
+end
+EM::run do
+    init
+    give_tick = proc { 
+        Gtk::main_iteration; Tox::Messenger::doMessenger; EM.next_tick(give_tick)
+    }
+    give_tick.call
+    # Start Websocket
+    EM::WebSocket.start(:host => "localhost", :port => 38473) do |ws|
+        ws.onopen { |handshake|
+            puts "WebSocket connection open"
+
+            # Access properties on the EM::WebSocket::Handshake object, e.g.
+            # path, query_string, origin, headers
+        }
+        ws.onclose { puts "Connection closed" }
+        ws.onmessage { |msg|
+            puts "Received command: #{msg}"
+            ws.send(MultiJson.dump(eval(msg)))
+        }
+    end
+    EM.start_server 'localhost', 38474, HttpHost
+end
