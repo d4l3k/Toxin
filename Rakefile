@@ -1,3 +1,4 @@
+#:cal SetSyn("Ruby")
 require 'bundler/setup' # Releasy requires require that your application uses bundler.
 require 'releasy'
 
@@ -10,12 +11,13 @@ require 'releasy'
     files "web/**/*", "views/**/*"
     exposed_files "README.md", "LICENSE"
     add_link "http://github.com/d4l3k/Toxin", "Source Code"
+    add_link "http://tristanrice.name", "Developer's Website"
     exclude_encoding # Applications that don't use advanced encoding (e.g. Japanese characters) can save build size with this.
 
     # Create a variety of releases, for all platforms.
     add_build :osx_app do
       url "com.d4l3k.toxin"
-      wrapper "wrappers/gosu-mac-wrapper-0.7.41.tar.gz" # Assuming this is where you downloaded this file.
+      wrapper "wrappers/gosu-mac-wrapper-0.7.47.tar.gz" # Assuming this is where you downloaded this file.
       icon "media/icon.icns"
       add_package :tar_gz
     end
@@ -42,7 +44,7 @@ require 'releasy'
 
     # If unable to build on a Windows machine, :windows_wrapped is the only choice.
     add_build :windows_wrapped do
-      wrapper "wrappers/ruby-1.9.3-p0-i386-mingw32.7z" # Assuming this is where you downloaded this file.
+      wrapper "wrappers/ruby-1.9.3-p448-i386-mingw32.7z" # Assuming this is where you downloaded this file.
       executable_type :windows # Assuming you don't want it to run with a console window.
       exclude_tcl_tk # Assuming application doesn't use Tcl/Tk, then it can save a lot of size by using this.
       add_package :zip

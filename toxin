@@ -107,8 +107,9 @@ class FriendRequest < WebViewWindow
 		@window.destroy
 	end
 end
-
-
+def update_friends
+	num_friends = Tox::Messenger
+end
 def init
     # Set process name
     $0 = "toxin"
