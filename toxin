@@ -10,7 +10,7 @@ require 'bundler'
 Bundler.require 
 class WebViewWindow
     attr_accessor :window, :screen, :webview
-    def initialize
+    def initialize config={}
         @window = Gtk::Window.new :toplevel
         @window.set_title "Toxin - Chat"
 	#@window.set_type_hint 6
@@ -22,7 +22,8 @@ class WebViewWindow
         @scroll.add @webview
         GObject.signal_connect(@window, "destroy") { Gtk.main_quit }
         transparent
-        post_init
+        @config = config
+	post_init
     end
     # TODO: This doesn't work and I don't know why.
     def transparent
@@ -37,7 +38,7 @@ class WebViewWindow
         @window.show_all
         @webview.load_html_string(result, "file://#{File.absolute_path("./web/#{path.to_s}")}")
     end
-    def post_init
+    def post_init config
     end
     def destroy
         @window.destroy
@@ -83,12 +84,30 @@ class WebViewWindow
     end
 end
 
+def pubkey_to_hex key
+	key.map { |a| b = "00"+a.to_s(16); b[b.length-2..-1] }.join.upcase
+end
+
 class Main < WebViewWindow
-    def post_init
+    def post_init 
         @window.resize 640,480
         erb :index
     end
 end
+class FriendRequest < WebViewWindow
+	def post_init 
+		@window.resize 320, 160
+		erb :friendrequest
+	end
+	def accept
+		Tox::Messenger::m_addfriend_norequest @config[:user_ptr]
+		@window.destroy
+	end
+	def reject
+		@window.destroy
+	end
+end
+
 
 def init
     # Set process name
@@ -97,7 +116,25 @@ def init
     GirFFI.setup :WebKit, '3.0'
     Gtk.init
     puts "Failed to initialize" unless Tox::Messenger::initMessenger==0
-    puts "User ID: #{Tox::Messenger::self_public_key}"
+    $pubkey = pubkey_to_hex Tox::Messenger::self_public_key.to_a
+    friendrequest_callback = Proc.new { |user_id_ptr, msg_ptr, msg_size|
+	user_id = pubkey_to_hex user_id_ptr.read_array_of_uint8(32)
+	msg = msg_ptr.read_string msg_size
+	puts "User[#{user_id}] Friend request: #{msg}"
+	$request_window = FriendRequest.new({ user_id: user_id, msg: msg, user_ptr: user_id_ptr })
+    }
+    Tox::Messenger::m_callback_friendrequest(friendrequest_callback)
+    friendmessage_callback = Proc.new { |friend_id, msg_ptr, msg_size|
+	msg = msg_ptr.read_string msg_size
+	puts "Friend[#{friend_id}] Message: #{msg}"
+    }
+    Tox::Messenger::m_callback_friendmessage(friendmessage_callback)
+    namechange_callback = Proc.new { |friend_id, name_ptr, name_size|
+	name = name_ptr.read_string name_size
+	puts "Friend[#{friend_id}] Name change: #{name}"
+    }
+    Tox::Messenger::m_callback_namechange(namechange_callback)
+    puts "User ID: #{$pubkey}"
     help = false
     ARGV.each do |arg|
         case arg
@@ -155,7 +192,8 @@ EM::run do
     give_tick.call
     # Start Websocket
     EM::WebSocket.start(:host => "localhost", :port => 38473) do |ws|
-        ws.onopen { |handshake|
+        $connection = ws
+	ws.onopen { |handshake|
             puts "WebSocket connection open"
 
             # Access properties on the EM::WebSocket::Handshake object, e.g.

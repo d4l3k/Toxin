@@ -1,0 +1,31 @@
+</head>
+    <style>
+        body {
+            background-color: rgba(0,0,0,0) !important;
+            height: 100%;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<h4>
+Friend Request from:
+</h4>
+<div class="id">
+<%= @config[:user_id] %>
+</div>
+<div class="msg">
+<%= @config[:msg] %>
+</div>
+<button>Accept</button><button>Reject</button>
+</body>
+<script src="jquery.min.js"></script>
+<script src="core.js"></script>
+<script>
+    $("button:contains('Accept')").click(function(){
+	execRuby("$request_window.accept",function(){})
+    });
+    $("button:contains('Reject')").click(function(){
+	execRuby("$request_window.reject",function(){})
+    });
+</script>
