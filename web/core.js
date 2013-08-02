@@ -1,17 +1,17 @@
 var conn = new WebSocket('ws://localhost:38473');
 var rubyQueue = [];
 function execRuby(msg,callback){
-    conn.send(msg);
+    conn.send(JSON.stringify({op:'exec_ruby',data:msg}));
     rubyQueue.push(callback);
-}
-function execProg(prog){
-    execRuby('spawn("'+prog+'"); Process::exit',function(){});
 }
 conn.onopen = function (e) {
 }
 conn.onerror = function(e) {
 }
 conn.onmessage = function(e) {
-    func = rubyQueue.shift();
-    func(e.data);
+    var json = JSON.parse(e.data);
+    if(json.op=="callback"){
+        func = rubyQueue.shift();
+        func(json.data);
+    }
 }

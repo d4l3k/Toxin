@@ -6,6 +6,9 @@
             overflow: hidden;
 	    width: 100%;
         }
+     button {
+        cursor: pointer;
+     }
 	.pane {
 		height: 100%;
 		top: 0;
@@ -18,7 +21,7 @@
 		width: 223px;
 	}
 	.pane.chat {
-		background-color: rgba(255,255,255,0.1);
+		background-color: #f1f2f2;
 		right: 0;
 		left: 223px;
 	}
@@ -40,6 +43,12 @@
 		margin-right: 8px;
 		background-color: white;
 	}
+    .chat .friendinlist {
+        border-bottom: 1px dotted #c1c1c1;
+    }
+    .chat .friendinlist .name {
+        color: #414042;
+    }
 	.friendinlist .name {
 		color: white;
 		font-size: 11pt;
@@ -48,6 +57,20 @@
 		vertical-align: middle;
 		margin-top: 4px;
 	}
+    .dropdown {
+        height: 100%;
+        width: 13px;
+        color: white;
+        background-color: #414042;
+        position: absolute;
+        top: 0;
+        display: table-cell;
+        text-align: center;
+        vertical-align: middle;
+        left: 210px;
+        padding-top: 20px;
+        cursor: pointer;
+    }
 	.badge {
 		height: 10px;
 		width: 10px;
@@ -77,6 +100,20 @@
 		color: white;
 		content: "You have no friends. :(";
 	}
+    #quick_buttons {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        bottom: 0;
+        height: 50px;
+    }
+    #chat_well {
+        position: absolute;
+        width: 100%;
+        bottom: 0;
+        right: 0;
+        top: 59px;
+    }
 	/*
 	#friends::-webkit-scrollbar {
 		width: 13px;
@@ -92,7 +129,25 @@
 	.friendinlist .status {
 		color: #636466;
 	}
+    #friend_controls {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 10px;
+        float: right;
+    }
+    #friend_controls > button {
+        height: 32px;
+        width: 51px;
+        margin-left: 15px;
+        background-color: #6bc260;
+        border-radius: 4px;
+        border-width: 0;
+        color: white;
+        font-weight: bold;
+    }
     </style>
+    <link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
 </head>
 <body>
 	<div class="pane settings">
@@ -105,15 +160,39 @@
 				No status yet...
 			</div>
 			<div class="badge online shadow"></div>
+            <div class="dropdown"><i class="icon-sort-down"></i></div>
 		</div>
 		<div id="friends"></div>
+        <div id="quick_buttons">
+            <button id="add_friend">Add Friend</button>
+        </div>
 	</div>
 	<div class="pane chat">
-		<%= $pubkey %>
+		<div class="friendinlist">
+			<img class="profile_pic" src="http://www.gravatar.com/avatar/TristanRice?s=44&d=retro"></img>
+			<div class="name">
+				<%= GLib.get_real_name %>
+			</div>
+			<div class="status">
+				No status yet...
+			</div>
+		</div>
+        <div id="friend_controls">
+            <button id="call"><i class="icon-phone icon-2x"></i></button>
+            <button id="video"><i class="icon-facetime-video icon-2x"></i></button>
+        </div>
+		<div id="chat_well">
+        <%= $pubkey %>
+        </div>
 	</div>
 </body>
 <script>
     <%= File.read('web/jquery.min.js') %>
     <%= File.read('web/core.js') %>
-    $(document).resize();
+    $("#add_friend").click(function(e){
+        var friend = prompt("Add a friend:");
+        if(friend!=null){
+            execRuby("addfriend '"+friend+"'",function(){});
+        }
+    });
 </script>

@@ -83,9 +83,20 @@ class WebViewWindow
         anim_tick.call
     end
 end
-
+def get_friends
+end
 def pubkey_to_hex key
 	key.map { |a| b = "00"+a.to_s(16); b[b.length-2..-1] }.join.upcase
+end
+def hex_to_pubkey hex
+    bits = []
+    index = 0
+    while index < hex.length
+        bits.push hex[index..index+1]
+        index += 2
+    end
+    bytes = bits.map { |a| a.to_i(16) }.pack("C*")
+    ptr = FFI::MemoryPointer.from_string(bytes)
 end
 
 class Main < WebViewWindow
@@ -119,22 +130,25 @@ def init
     puts "Failed to initialize" unless Tox::Messenger::initMessenger==0
     $pubkey = pubkey_to_hex Tox::Messenger::self_public_key.to_a
     friendrequest_callback = Proc.new { |user_id_ptr, msg_ptr, msg_size|
-	user_id = pubkey_to_hex user_id_ptr.read_array_of_uint8(32)
-	msg = msg_ptr.read_string msg_size
-	puts "User[#{user_id}] Friend request: #{msg}"
-	$request_window = FriendRequest.new({ user_id: user_id, msg: msg, user_ptr: user_id_ptr })
+        user_id = pubkey_to_hex user_id_ptr.read_array_of_uint8(32)
+        msg = msg_ptr.read_string msg_size
+
+        puts "User[#{user_id}] Friend request: #{msg}"
+        $request_window = FriendRequest.new({ user_id: user_id, msg: msg, user_ptr: user_id_ptr })
     }
     Tox::Messenger::m_callback_friendrequest(friendrequest_callback)
     friendmessage_callback = Proc.new { |friend_id, msg_ptr, msg_size|
-	msg = msg_ptr.read_string msg_size
-	puts "Friend[#{friend_id}] Message: #{msg}"
+        msg = msg_ptr.read_string msg_size
+        puts "Friend[#{friend_id}] Message: #{msg}"
     }
     Tox::Messenger::m_callback_friendmessage(friendmessage_callback)
     namechange_callback = Proc.new { |friend_id, name_ptr, name_size|
-	name = name_ptr.read_string name_size
-	puts "Friend[#{friend_id}] Name change: #{name}"
+        name = name_ptr.read_string name_size
+        puts "Friend[#{friend_id}] Name change: #{name}"
     }
     Tox::Messenger::m_callback_namechange(namechange_callback)
+    $name_ptr = FFI::MemoryPointer.from_string GLib.get_real_name
+    Tox::Messenger::setname($name_ptr, $name_ptr.size-1)
     puts "User ID: #{$pubkey}"
     help = false
     ARGV.each do |arg|
@@ -163,6 +177,13 @@ def get_name_bits
     last = bits[1..-1].join ' '
     return [first,last]
 end
+def addfriend key
+    pubkey_ptr = hex_to_pubkey key
+    msg = "Please let me be your friend."
+    msg_ptr = FFI::MemoryPointer.from_string(msg)
+    Tox::Messenger::m_addfriend pubkey_ptr, msg_ptr, msg_ptr.size-1
+end
+=begin
 class HttpHost < EM::Connection
     include EM::HttpServer
     def post_init
@@ -185,16 +206,19 @@ class HttpHost < EM::Connection
         bits = @http_request_uri.split("/")
     end
 end
+=end
 EM::run do
     init
-    give_tick = proc { 
-        Gtk::main_iteration; Tox::Messenger::doMessenger; EM.next_tick(give_tick)
-    }
-    give_tick.call
+    Process::fork do
+        Gtk.main
+    end
+    EM.add_periodic_timer (1.0/200.0) do
+        Tox::Messenger::doMessenger
+    end
     # Start Websocket
     EM::WebSocket.start(:host => "localhost", :port => 38473) do |ws|
-        $connection = ws
-	ws.onopen { |handshake|
+        $connection ||= ws
+	    ws.onopen { |handshake|
             puts "WebSocket connection open"
 
             # Access properties on the EM::WebSocket::Handshake object, e.g.
@@ -202,9 +226,12 @@ EM::run do
         }
         ws.onclose { puts "Connection closed" }
         ws.onmessage { |msg|
-            puts "Received command: #{msg}"
-            ws.send(MultiJson.dump(eval(msg)))
+            puts "Received JSON: #{msg}"
+            json = MultiJson.load msg
+            if json["op"]=="exec_ruby"
+                ws.send(MultiJson.dump({op:'callback', data:MultiJson.dump(eval(json["data"]))}))
+            end
         }
     end
-    EM.start_server 'localhost', 38474, HttpHost
+    #EM.start_server 'localhost', 38474, HttpHost
 end
